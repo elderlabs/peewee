@@ -21,7 +21,8 @@ from playhouse.tests.models import TestingID as _TestingID
 
 
 class TestPostgresqlExtDatabase(PostgresqlExtDatabase):
-    insert_returning = False
+    pass
+    # insert_returning = False
 
 
 PYPY = 'PyPy' in sys.version
@@ -1043,6 +1044,15 @@ class TestIntervalField(ModelTestCase):
             ('hour', datetime.timedelta(hours=1)),
             ('mix', datetime.timedelta(days=1, hours=2, minutes=3, seconds=4))
         ])
+
+
+class TestUpsert(ModelTestCase):
+    requires = [User]
+
+    def test_upsert(self):
+        User.insert(id=5, username='test').execute()
+        User.insert(id=5, username='test2').upsert(target=User.id).execute()
+        self.assertEqual(User.get(id=5).username, 'test2')
 
 
 if __name__ == '__main__':

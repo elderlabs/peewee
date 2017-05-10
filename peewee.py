@@ -2082,12 +2082,14 @@ class QueryCompiler(object):
         meta = model._meta
         alias_map = self.alias_map_class()
         alias_map.add(model, model._meta.db_table)
-        if query._upsert:
+
+        if query._upsert and meta.database.upsert_sql:
             statement = meta.database.upsert_sql
         elif query._on_conflict and query._on_conflict.upper() != 'DO NOTHING':
             statement = 'INSERT OR %s INTO' % query._on_conflict
         else:
             statement = 'INSERT INTO'
+
         clauses = [SQL(statement), model.as_entity()]
 
         if query._query is not None:
@@ -2095,7 +2097,6 @@ class QueryCompiler(object):
             if query._fields:
                 clauses.append(self._get_field_clause(query._fields))
             clauses.append(_StripParens(query._query))
-
         elif query._rows is not None:
             fields, value_clauses = [], []
             have_fields = False
@@ -2124,6 +2125,30 @@ class QueryCompiler(object):
                 # Bare insert, use default value for primary key.
                 clauses.append(query.database.default_insert_clause(
                     query.model_class))
+
+
+        if query._upsert and not meta.database.upsert_sql:
+            updates = []
+            have_fields = False
+
+            for row_dict in query._iter_rows():
+                for field in sorted(row_dict.keys(), key=operator.attrgetter('_sort_key')):
+                    value = row_dict[field]
+                    if not isinstance(value, (Node, Model)):
+                        value = Param(value, adapt=field.db_value)
+                    updates.append(Expression(
+                        field.as_entity(),
+                        OP.EQ,
+                        value,
+                        flat=True
+                    ))
+
+            clauses.extend([
+                SQL('ON CONFLICT'),
+                SQL('(%s)' % query._upsert_target.db_column),
+                SQL('DO UPDATE SET'),
+                CommaClause(*updates)
+            ])
 
         if query._on_conflict and query._on_conflict.upper() == 'DO NOTHING':
             clauses.append(SQL('ON CONFLICT %s' % query._on_conflict))
@@ -3476,6 +3501,7 @@ class InsertQuery(_WriteQuery):
         super(InsertQuery, self).__init__(model_class)
 
         self._upsert = False
+        self._upsert_target = None
         self._is_multi_row_insert = rows is not None or query is not None
         self._return_id_list = False
         if rows is not None:
@@ -3521,6 +3547,7 @@ class InsertQuery(_WriteQuery):
         query = super(InsertQuery, self)._clone_attributes(query)
         query._rows = self._rows
         query._upsert = self._upsert
+        query._upsert_target = self._upsert_target
         query._is_multi_row_insert = self._is_multi_row_insert
         query._fields = self._fields
         query._query = self._query
@@ -3533,8 +3560,9 @@ class InsertQuery(_WriteQuery):
     where = not_allowed('where clause')
 
     @returns_clone
-    def upsert(self, upsert=True):
+    def upsert(self, upsert=True, target=None):
         self._upsert = upsert
+        self._upsert_target = target
 
     @returns_clone
     def on_conflict(self, action=None):
