@@ -2153,16 +2153,16 @@ class QueryCompiler(object):
         if query._on_conflict and query._on_conflict.upper() == 'DO NOTHING':
             clauses.append(SQL('ON CONFLICT %s' % query._on_conflict))
 
-        if query.is_insert_returning:
+        if query._returning is not None:
+            returning_clause = Clause(*query._returning)
+            returning_clause.glue = ', '
+            clauses.extend([SQL('RETURNING'), returning_clause])
+        elif query.is_insert_returning:
             clauses.extend([
                 SQL('RETURNING'),
                 self._get_field_clause(
                     meta.get_primary_key_fields(),
                     clause_type=CommaClause)])
-        elif query._returning is not None:
-            returning_clause = Clause(*query._returning)
-            returning_clause.glue = ', '
-            clauses.extend([SQL('RETURNING'), returning_clause])
 
 
         return self.build_query(clauses, alias_map)

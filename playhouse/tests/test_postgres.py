@@ -1051,8 +1051,15 @@ class TestUpsert(ModelTestCase):
 
     def test_upsert(self):
         User.insert(id=5, username='test').execute()
-        User.insert(id=5, username='test2').upsert(target=User.id).execute()
+        uid = User.insert(id=5, username='test2').upsert(target=User.id).execute()
+        self.assertEqual(uid, 5)
         self.assertEqual(User.get(id=5).username, 'test2')
+
+    def test_upsert_returning(self):
+        User.insert(id=6, username='test123').upsert(target=User.id).execute()
+        result = User.insert(id=6, username='321test').upsert(target=User.id).returning(User.id, User.username).execute()
+
+        self.assertEqual(list(result)[0].username, '321test')
 
 
 if __name__ == '__main__':
