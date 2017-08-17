@@ -37,6 +37,10 @@ try:
     from collections import OrderedDict
 except ImportError:
     OrderedDict = dict
+try:
+    import gevent
+except ImportError:
+    gevent = None
 from copy import deepcopy
 from functools import wraps
 from inspect import isclass
@@ -2887,6 +2891,23 @@ class Query(Node):
     def switch(self, model_class=None):
         """Change or reset the query context."""
         self._query_ctx = model_class or self.model_class
+
+    def async(self):
+        if not gevent:
+            raise NotImplementedError
+
+        result = gevent.event.AsyncResult()
+        def _async():
+            try:
+                start = time.time()
+                self.execute()
+                self._query_time = time.time() - start
+            except Exception as exe:
+                result.set_exception(exe, sys.exc_info())
+                return
+            result.set(self)
+        gevent.spawn(_async)
+        return result
 
     def ensure_join(self, lm, rm, on=None, **join_kwargs):
         ctx = self._query_ctx
