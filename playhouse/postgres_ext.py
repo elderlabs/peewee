@@ -240,6 +240,9 @@ class BinaryJSONField(IndexedFieldMixin, JSONField):
     db_field = 'jsonb'
     default_index_type = 'GIN'
 
+    def set(self, *args):
+        return fn.jsonb_set(self, Passthrough(list(args[:-1])), Json(args[-1]))
+
     def contains(self, other):
         if isinstance(other, (list, dict)):
             return Expression(self, OP.JSONB_CONTAINS, Json(other))
