@@ -2130,6 +2130,7 @@ class QueryCompiler(object):
                 clauses.append(query.database.default_insert_clause(
                     query.model_class))
 
+<<<<<<< HEAD
 
         if query._upsert and not meta.database.upsert_sql:
             updates = []
@@ -2158,16 +2159,17 @@ class QueryCompiler(object):
             clauses.append(SQL('ON CONFLICT %s' % query._on_conflict))
 
         if query._returning is not None:
+            # Return the fields asked for.
             returning_clause = Clause(*query._returning)
             returning_clause.glue = ', '
             clauses.extend([SQL('RETURNING'), returning_clause])
         elif query.is_insert_returning:
+            # Return the primary keys.
             clauses.extend([
                 SQL('RETURNING'),
                 self._get_field_clause(
                     meta.get_primary_key_fields(),
                     clause_type=CommaClause)])
-
 
         return self.build_query(clauses, alias_map)
 
