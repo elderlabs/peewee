@@ -2130,8 +2130,6 @@ class QueryCompiler(object):
                 clauses.append(query.database.default_insert_clause(
                     query.model_class))
 
-<<<<<<< HEAD
-
         if query._upsert and not meta.database.upsert_sql:
             updates = []
             have_fields = False
@@ -2861,6 +2859,10 @@ class Query(Node):
             elif isclass(arg) and issubclass(arg, Model):
                 accum.extend(arg._meta.declared_fields)
         return accum
+
+    @returns_clone
+    def with_database(self, database):
+        self.database = database
 
     @returns_clone
     def where(self, *expressions):
@@ -5071,18 +5073,18 @@ class Model(with_metaclass(BaseModel)):
         return cls.select().filter(*dq, **query)
 
     @classmethod
-    def table_exists(cls):
+    def table_exists(cls, db):
         kwargs = {}
         if cls._meta.schema:
             kwargs['schema'] = cls._meta.schema
-        return cls._meta.db_table in cls._meta.database.get_tables(**kwargs)
+        return cls._meta.db_table in db.get_tables(**kwargs)
 
     @classmethod
-    def create_table(cls, fail_silently=False):
-        if fail_silently and cls.table_exists():
+    def create_table(cls, fail_silently=False, db=None):
+        db = db or cls._meta.database
+        if fail_silently and cls.table_exists(db):
             return
 
-        db = cls._meta.database
         pk = cls._meta.primary_key
         if db.sequences and pk is not False and pk.sequence:
             if not db.sequence_exists(pk.sequence):
