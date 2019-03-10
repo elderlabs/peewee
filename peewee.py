@@ -125,7 +125,7 @@ PY3 = sys.version_info[0] == 3
 PY26 = sys.version_info[:2] == (2, 6)
 if PY3:
     import builtins
-    from collections import Callable
+    from collections.abc import Callable
     from functools import reduce
     callable = lambda c: isinstance(c, Callable)
     unicode_type = str
@@ -2896,7 +2896,7 @@ class Query(Node):
         """Change or reset the query context."""
         self._query_ctx = model_class or self.model_class
 
-    def async(self):
+    def basync(self):
         if not gevent:
             raise NotImplementedError
 
